@@ -14,7 +14,7 @@
       sudo ls "$file_dir"
 
       export VAULT_ADDR=https://vault.service.consul:8200
-      vault login -address="$VAULT_ADDR" -method=aws header_value=vault.service.consul role=provisioner-vault-role  
+      vault login -no-print -address="$VAULT_ADDR" -method=aws header_value=vault.service.consul role=provisioner-vault-role  
       vault kv put -address="$VAULT_ADDR" -format=json $target file="$(sudo cat $file_path)"
       
       if [[ "$OSTYPE" == "darwin"* ]]; then # Acquire file permissions.
