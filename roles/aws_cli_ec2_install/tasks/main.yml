@@ -9,15 +9,15 @@
   tags:
   - always
 
-- name: install whois, passlib
-  package:
-    name: "{{ item }}"
-    state: present
-  with_items:
-    - whois
-    - zip
-  vars:
-    ansible_python_interpreter: "{{ package_python_interpreter }}"
+# - name: install whois, passlib
+#   package:
+#     name: "{{ item }}"
+#     state: present
+#   with_items:
+#     - whois
+#     - zip
+#   vars:
+#     ansible_python_interpreter: "{{ package_python_interpreter }}"
 
 # - name: ansible versions other than 'latest' are not supported until virtuelenv is integrated into the repo.
 #   fail:
