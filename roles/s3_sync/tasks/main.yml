@@ -1,3 +1,4 @@
+# This role is a clone from firehawkvfx.core collection due to a bug in pcker which is...unfortunate. https://github.com/hashicorp/packer/issues/10314
 - name: "Sync S3 {{ mode }} user:"
   debug:
     msg: "sync_user:{{ sync_user }}"
@@ -15,18 +16,22 @@
 
 - name: "Sync S3 {{ mode }} {{ basedir }}/{{ filename }} s3://{{ bucket }}/" # warning: there appears to be a bug with ansible that may result in variable user being defined at the include_role level not setting the sync_user var correctly.  consider this if errors should occur.
   shell: |
+    # The next line is supposed to fix a problem using aws cli, but it does not https://github.com/ansible/ansible/issues/71520
+    . /etc/profile && echo $PATH
+    # Instead we provide the full path to the ansible executable in centos with var 'aws_executable'
     # set -x
     cd ~
     
-    echo "aws sts get-caller-identity"
-    aws sts get-caller-identity
-
     filename="{{ filename }}"
     
     echo "become user {{ sync_user }}"
     echo "whoami $(whoami)"
     echo "pwd: $(pwd)"
     echo "PATH: $PATH"
+
+    echo "{{ aws_executable }} sts get-caller-identity"
+    {{ aws_executable }} sts get-caller-identity
+
     cd {{ basedir }}
     exit_code=$?
     echo "pwd: $(pwd)"
@@ -35,10 +40,10 @@
     test_file () {
       local filename="$1"
       echo "ls bucket: {{ bucket }}"
-      aws s3 ls s3://{{ bucket }}/
-      aws s3 ls s3://{{ bucket }}/|grep {{ filename }}
-      aws s3 ls s3://{{ bucket }}/|grep {{ filename }}|wc -c
-      wordcount=`aws s3 ls s3://{{ bucket }}/|grep {{ filename }}|wc -c`
+      {{ aws_executable }} s3 ls s3://{{ bucket }}/
+      {{ aws_executable }} s3 ls s3://{{ bucket }}/|grep {{ filename }}
+      {{ aws_executable }} s3 ls s3://{{ bucket }}/|grep {{ filename }}|wc -c
+      wordcount=`{{ aws_executable }} s3 ls s3://{{ bucket }}/|grep {{ filename }}|wc -c`
       echo "wordcount: $wordcount"
       if [[ "${wordcount}" -eq 0 ]]; then
         file_in_bucket=false
@@ -48,7 +53,6 @@
         echo "ls word count is not 0, file_in_bucket: $file_in_bucket"
       fi
     }
-
     
     echo "Use filename: $filename"
     if [[ "$filename" == *"*"* ]]; then
@@ -66,7 +70,7 @@
       if [[ {{ mode }} == 'push' ]]; then
         echo "Sync Push: File not yet present in S3 bucket, will push."
         if [ -f "{{ filename }}" ] || [[ "$skip_existance_check" == true ]]; then
-          aws s3 sync . s3://{{ bucket }}/ --exclude "{{ exclude }}" --include "{{ filename }}" --no-progress --acl bucket-owner-full-control # see https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html https://aws.amazon.com/premiumsupport/knowledge-center/s3-bucket-owner-access/
+          {{ aws_executable }} s3 sync . s3://{{ bucket }}/ --exclude "{{ exclude }}" --include "{{ filename }}" --no-progress --acl bucket-owner-full-control # see https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html https://aws.amazon.com/premiumsupport/knowledge-center/s3-bucket-owner-access/
           
           if [[ "$skip_existance_check" == true ]]; then
             echo "Skipping existance check"
@@ -101,7 +105,7 @@
           echo "{{ filename }} File already present on disk.  Won't Pull"
           exit 0
         else 
-          aws s3 sync s3://{{ bucket }}/ . --exclude "{{ exclude }}" --include "{{ filename }}" --no-progress
+          {{ aws_executable }} s3 sync s3://{{ bucket }}/ . --exclude "{{ exclude }}" --include "{{ filename }}" --no-progress
           if [[ "$skip_existance_check" == true ]]; then
             echo "Skipping existance check"
             exit 0
@@ -117,7 +121,7 @@
         fi
       fi
     fi
-  become_user: "{{ sync_user }}"
+  # become_user: "{{ sync_user }}"
   # become: true # this priveledge escalation shouldn't be necesary, but resolved a sync issue when pulling locally.
   register: output
   changed_when:
